@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import sys
 
 #-------------------------------------------------
 #      The Functions You Should Care About
@@ -60,8 +59,7 @@ def _decode_dict(bencoded_data):
                 if marker in "123456789":
                     key = token
                 else:
-                    print "Bad key type! (%s)" % marker
-                    sys.exit(1)
+                    raise TypeError("Bad key type! (%s)" % marker)
             else:
                 dictionary[key] = token
                 key = None
@@ -81,8 +79,7 @@ def _decode_next_token(bencoded_data):
     elif marker == "l":
         bencoded_data, token = _decode_list(bencoded_data)
     else:
-        print "Unknown marker '%s'. Bailing." % marker
-        sys.exit(1)
+        raise TypeError("Unknown marker '%s'. Bailing." % marker)
 
     return bencoded_data, marker, token
 
@@ -108,7 +105,7 @@ def _encode_dict(d):
             bencoded_data += _encode_next_object(k)
             bencoded_data += _encode_next_object(v)
         else:
-            print "Dictionary keys must be strings, not '%s'" % type(k)
+            raise TypeError("Dictionary keys must be strings, not '%s'" % type(k))
 
     return "d" + bencoded_data + "e"
 
@@ -131,9 +128,7 @@ def _encode_next_object(obj):
     elif type(obj) == list:
         return _encode_list(obj)
     else:
-        print "Unsupported type %s. Bailing." % type(obj)
-        sys.exit(1)
-
+        raise TypeError("Unsupported type %s. Bailing." % type(obj))
 
 #-----------------------------------------
 #              main() stuff
