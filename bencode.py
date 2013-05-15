@@ -119,10 +119,21 @@ def encode_next_object(obj):
 def encode(obj):
     return encode_next_object(obj)
 
-with open("test.torrent", "r") as f:
-    s = f.read()
+if __name__ == "__main__":
+    with open("test.torrent", "r") as f:
+        s = f.read()
 
-decoded_obj = decode(s)
-encoded_obj = encode(decoded_obj)
+    decoded_obj = decode(s)
+    encoded_obj = encode(decoded_obj)
 
-print s == encoded_obj
+    print "Testing test.torrent...",
+    if s == encoded_obj:
+        print "Success, reencoded data matched original."
+    else:
+        print "Failed"
+        print "Expected:", s
+        print "Got:", encoded_obj
+
+
+
+
