@@ -1,51 +1,65 @@
+#!/usr/bin/env racket
+
 #lang racket
 
-; not sure this is the right thing to do
-(define bencode-data (make-parameter ""))
-
-(define (find-character str char)
-  (define orig-length (string-length str))
-  (define (recurse-find-char str char pos)
-    (cond
-      [(string=? char (substring str 0 1)) pos]
-      [(>= pos orig-length) -1]
-      [else (recurse-find-char (substring str 1) char (add1 pos))]))
-  (recurse-find-char str char 0))
-
-(define (decode-next-item data)
-  (bencode-data data)
-  (define marker (substring data 0 1))
+(define (read-until-char port char)
+  (define new-char (read-char port))
   (cond
-    [(string=? marker "i") (decode-int data)]
-    [(string=? marker "l") (decode-list data)]
-    [(number? (string->number marker)) (decode-string data)]
-    [else #f]))
+    [(eof-object? new-char) (raise "character not found")]
+    [(char=? new-char char) (string new-char)]
+    [else (string-append
+            (string new-char)
+            (read-until-char port char))]))
 
-(define (decode-int data)
-  (define end (find-character data "e"))
-  (bencode-data (substring data (add1 end)))
-  (string->number (substring data 1 end)))
+(define (decode-int port)
+  (define data (read-until-char port #\e))
+  (string->number
+    (substring data 1 (sub1 (string-length data)))))
 
-(define (decode-string data)
-  (define delim (find-character data ":"))
-  (define strlen (string->number (substring data 0 delim)))
-  (bencode-data (substring data (+ strlen (add1 delim))))
-  (substring data (add1 delim) (+ strlen (add1 delim))))
+(define (decode-string port)
+  (define len-str (read-until-char port #\:))
+  (define len
+    (string->number (substring
+                      len-str
+                      0
+                      (sub1 (string-length len-str)))))
+  (read-string len port))
 
-; this is not pretty
-(define (decode-list data)
-  (define (recurse-list-items data)
-    (define item (decode-next-item data))
-    ; if item is #f, we've hit the end of the list, so
-    ; strip off the 'e'
-    (if (equal? item #f)
-      (bencode-data (substring (bencode-data) 1))
-      #f)
+(define (decode-list port)
+  (read-char port) ; drop the 'l'
+  (define (recurse-decode-list port)
+    (define item (decode-next-item port))
     (cond
-      [(equal? item #f) empty]
-      [else (cons item (recurse-list-items (bencode-data)))]))
-  (recurse-list-items (substring data 1)))
+      [(char=? (peek-char port) #\e) (read-char port) (cons item empty)]
+      [else (cons item (recurse-decode-list port))]))
+  (recurse-decode-list port))
 
-(decode-next-item "i1337e")
-(decode-next-item "12:dis a string")
-(decode-next-item "l1:a1:bl2:aa2:bbe1:ce")
+(define (decode-dict port)
+  (read-char port) ; drop the 'd'
+  (define data-dict (make-hash))
+  (define (recurse-decode-dict port key)
+    (define marker (peek-char port))
+    (cond
+      [(char=? marker #\e) #f] ; WARNING: if key is not #f, this will silently ignore the error
+      [(equal? key #f) (recurse-decode-dict port (decode-next-item port))]
+      [else (hash-set! data-dict key (decode-next-item port))
+            (recurse-decode-dict port #f)]))
+  (recurse-decode-dict port #f)
+  data-dict)
+
+(define (decode-next-item port)
+  (define marker (peek-char port))
+  (cond
+    [(char=? marker #\i) (decode-int port)]
+    [(char=? marker #\l) (decode-list port)]
+    [(char=? marker #\d) (decode-dict port)]
+    [(number? (string->number (string marker))) (decode-string port)]
+    [else (raise (format "Unknown marker '~v'." marker))]))
+
+(define (decode-bencoded data)
+  (define port (open-input-string data))
+  (decode-next-item port))
+
+;(define torrent-data (file->string "test.torrent"))
+(define torrent-data "d2:k12:v12:k22:v2li1337eee")
+(decode-bencoded torrent-data)
