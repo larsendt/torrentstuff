@@ -125,7 +125,7 @@ def _encode_next_object(obj):
         return _encode_string(obj)
     elif type(obj) == dict:
         return _encode_dict(obj)
-    elif type(obj) == list:
+    elif type(obj) == list or type(obj) == tuple:
         return _encode_list(obj)
     else:
         raise TypeError("Unsupported type %s. Bailing." % type(obj))
