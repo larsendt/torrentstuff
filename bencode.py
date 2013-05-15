@@ -79,7 +79,7 @@ def _decode_next_token(bencoded_data):
     elif marker == "l":
         bencoded_data, token = _decode_list(bencoded_data)
     else:
-        raise TypeError("Unknown marker '%s'. Bailing." % marker)
+        raise TypeError("Unknown marker '%s'." % marker)
 
     return bencoded_data, marker, token
 
@@ -128,7 +128,7 @@ def _encode_next_object(obj):
     elif type(obj) == list or type(obj) == tuple:
         return _encode_list(obj)
     else:
-        raise TypeError("Unsupported type %s. Bailing." % type(obj))
+        raise TypeError("Unsupported type %s." % type(obj))
 
 #-----------------------------------------
 #              main() stuff
