@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 import sys
 
+#--------------------------------------------------
+#                   Decoding
+#--------------------------------------------------
+
 def decode_string(bencoded_data):
     delim = bencoded_data.find(":")
     sz = int(bencoded_data[:delim])
@@ -19,22 +23,13 @@ def decode_list(bencoded_data):
     lst = []
 
     while 1:
-        marker = bencoded_data[0]
-        if marker == "e":
-            bencoded_data = bencoded_data[1:]
-            return bencoded_data, lst
-        elif marker in "123456789":
-            bencoded_data, s = decode_string(bencoded_data)
-            lst.append(s)
-        elif marker == "i":
-            bencoded_data, i = decode_int(bencoded_data)
-            lst.append(i)
-        elif marker == "d":
-            bencoded_data, d = decode_dict(bencoded_data)
-            lst.append(d)
-        elif marker == "l":
-            bencoded_data, l = decode_list(bencoded_data)
-            lst.append(l)
+        if bencoded_data[0] == "e":
+            break
+        else:
+            bencoded_data, marker, token = decode_next_token(bencoded_data)
+            lst.append(token)
+
+    return bencoded_data[1:], lst
 
 def decode_dict(bencoded_data):
     bencoded_data = bencoded_data[1:]
@@ -42,40 +37,21 @@ def decode_dict(bencoded_data):
     dictionary = {}
 
     while 1:
-        marker = bencoded_data[0]
-        if marker == "e":
-            bencoded_data = bencoded_data[1:]
-            return bencoded_data, dictionary
-        elif marker in "123456789":
-            bencoded_data, s = decode_string(bencoded_data)
-            if key == None:
-                key = s
-            else:
-                dictionary[key] = s
-                key = None
-        elif marker == "i":
-            bencoded_data, i = decode_int(bencoded_data)
-            if key == None:
-                print "INTEGER KEY IS BAAAAAD"
-            else:
-                dictionary[key] = i
-                key = None
-        elif marker == "d":
-            bencoded_data, d = decode_dict(bencoded_data)
-            if key == None:
-                print "DICT KEY IS BAAAAAD"
-            else:
-                dictionary[key] = d
-                key = None
-        elif marker == "l":
-            bencoded_data, l = decode_list(bencoded_data)
-            if key == None:
-                print "LIST KEY IS BAAAAAD"
-            else:
-                dictionary[key] = l
-                key = None
+        if bencoded_data[0] == "e":
+            break
         else:
-            print "Unknown marker. Bailing"
+            bencoded_data, marker, token = decode_next_token(bencoded_data)
+            if key == None:
+                if marker in "123456789":
+                    key = token
+                else:
+                    print "Bad key type! (%s)" % marker
+                    sys.exit(1)
+            else:
+                dictionary[key] = token
+                key = None
+
+    return bencoded_data[1:], dictionary
 
 def decode_next_token(bencoded_data):
     marker = bencoded_data[0]
@@ -89,30 +65,64 @@ def decode_next_token(bencoded_data):
     elif marker == "l":
         bencoded_data, token = decode_list(bencoded_data)
     else:
-        print "Unknown token '%s'. Bailing." % marker
+        print "Unknown marker '%s'. Bailing." % marker
         sys.exit(1)
 
     return bencoded_data, marker, token
 
 def decode(bencoded_data):
-    marker = bencoded_data[0]
-    if marker == "i":
-        bencoded_data, item = decode_int(bencoded_data)
-    elif marker in "123456789":
-        bencoded_data, item = decode_string(bencoded_data)
-    elif marker == "l":
-        bencoded_data, item = decode_list(bencoded_data)
-    elif marker == "d":
-        bencoded_data, item = decode_dict(bencoded_data)
+    return decode_next_token(bencoded_data)[2]
+
+#--------------------------------------------------
+#                   Encoding
+#--------------------------------------------------
+
+def encode_int(i):
+    return "i" + str(i) + "e"
+
+def encode_string(s):
+    return "%d:%s" % (len(s), s)
+
+def encode_dict(d):
+    bencoded_data = ""
+    kvpairs = sorted(d.items(), key=lambda x: x[0])
+
+    for k, v in kvpairs:
+        if type(k) == str:
+            bencoded_data += encode_next_object(k)
+            bencoded_data += encode_next_object(v)
+        else:
+            print "Dictionary keys must be strings, not '%s'" % type(k)
+
+    return "d" + bencoded_data + "e"
+
+def encode_list(l):
+    bencoded_data = ""
+    for item in l:
+        bencoded_data += encode_next_object(item)
+
+    return "l" + bencoded_data + "e"
+
+def encode_next_object(obj):
+    if type(obj) == int:
+        return encode_int(obj)
+    elif type(obj) == str:
+        return encode_string(obj)
+    elif type(obj) == dict:
+        return encode_dict(obj)
+    elif type(obj) == list:
+        return encode_list(obj)
     else:
-        print "Unknown marker '%s', bailing." % marker
-        return None
+        print "Unsupported type %s. Bailing." % type(obj)
+        sys.exit(1)
 
-    return item
+def encode(obj):
+    return encode_next_object(obj)
 
-#with open("test.torrent", "r") as f:
-#    s = f.read()
+with open("test.torrent", "r") as f:
+    s = f.read()
 
-print decode("l13:Hello, world!i1337ed3:key5:value3:inti5e4:dictd4:dkey6:dvalueeel5:item15:item25:item3ee")
-print decode("d2:k12:v12:k2d3:dk13:dv14:listl5:item15:item2d4:ldk14:ldv1eeee")
+decoded_obj = decode(s)
+encoded_obj = encode(decoded_obj)
 
+print s == encoded_obj
