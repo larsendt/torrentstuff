@@ -1,24 +1,38 @@
 #!/usr/bin/env python
 import sys
 
+#-------------------------------------------------
+#      The Functions You Should Care About
+#-------------------------------------------------
+
+def decode(bencoded_data):
+    """Decode a Bencode string into a Python data structure."""
+    return _decode_next_token(bencoded_data)[2]
+
+def encode(obj):
+    """Encode a python object (dict, list, int, string) in the Bencode format. Accepts nested structures."""
+    return _encode_next_object(obj)
+
 #--------------------------------------------------
 #                   Decoding
 #--------------------------------------------------
 
-def decode_string(bencoded_data):
+def _decode_string(bencoded_data):
     delim = bencoded_data.find(":")
     sz = int(bencoded_data[:delim])
     s = bencoded_data[delim+1:sz+delim+1]
     bencoded_data = bencoded_data[delim+sz+1:]
     return bencoded_data, s
 
-def decode_int(bencoded_data):
+
+def _decode_int(bencoded_data):
     end = bencoded_data.find("e")
     i = int(bencoded_data[1:end])
     bencoded_data = bencoded_data[end+1:]
     return bencoded_data, i
 
-def decode_list(bencoded_data):
+
+def _decode_list(bencoded_data):
     bencoded_data = bencoded_data[1:]
     lst = []
 
@@ -26,12 +40,13 @@ def decode_list(bencoded_data):
         if bencoded_data[0] == "e":
             break
         else:
-            bencoded_data, marker, token = decode_next_token(bencoded_data)
+            bencoded_data, marker, token = _decode_next_token(bencoded_data)
             lst.append(token)
 
     return bencoded_data[1:], lst
 
-def decode_dict(bencoded_data):
+
+def _decode_dict(bencoded_data):
     bencoded_data = bencoded_data[1:]
     key = None
     dictionary = {}
@@ -40,7 +55,7 @@ def decode_dict(bencoded_data):
         if bencoded_data[0] == "e":
             break
         else:
-            bencoded_data, marker, token = decode_next_token(bencoded_data)
+            bencoded_data, marker, token = _decode_next_token(bencoded_data)
             if key == None:
                 if marker in "123456789":
                     key = token
@@ -53,71 +68,76 @@ def decode_dict(bencoded_data):
 
     return bencoded_data[1:], dictionary
 
-def decode_next_token(bencoded_data):
+
+def _decode_next_token(bencoded_data):
     marker = bencoded_data[0]
 
     if marker in "123456789":
-        bencoded_data, token = decode_string(bencoded_data)
+        bencoded_data, token = _decode_string(bencoded_data)
     elif marker == "i":
-        bencoded_data, token = decode_int(bencoded_data)
+        bencoded_data, token = _decode_int(bencoded_data)
     elif marker == "d":
-        bencoded_data, token = decode_dict(bencoded_data)
+        bencoded_data, token = _decode_dict(bencoded_data)
     elif marker == "l":
-        bencoded_data, token = decode_list(bencoded_data)
+        bencoded_data, token = _decode_list(bencoded_data)
     else:
         print "Unknown marker '%s'. Bailing." % marker
         sys.exit(1)
 
     return bencoded_data, marker, token
 
-def decode(bencoded_data):
-    return decode_next_token(bencoded_data)[2]
 
 #--------------------------------------------------
 #                   Encoding
 #--------------------------------------------------
 
-def encode_int(i):
+def _encode_int(i):
     return "i" + str(i) + "e"
 
-def encode_string(s):
+
+def _encode_string(s):
     return "%d:%s" % (len(s), s)
 
-def encode_dict(d):
+
+def _encode_dict(d):
     bencoded_data = ""
     kvpairs = sorted(d.items(), key=lambda x: x[0])
 
     for k, v in kvpairs:
         if type(k) == str:
-            bencoded_data += encode_next_object(k)
-            bencoded_data += encode_next_object(v)
+            bencoded_data += _encode_next_object(k)
+            bencoded_data += _encode_next_object(v)
         else:
             print "Dictionary keys must be strings, not '%s'" % type(k)
 
     return "d" + bencoded_data + "e"
 
-def encode_list(l):
+
+def _encode_list(l):
     bencoded_data = ""
     for item in l:
-        bencoded_data += encode_next_object(item)
+        bencoded_data += _encode_next_object(item)
 
     return "l" + bencoded_data + "e"
 
-def encode_next_object(obj):
+
+def _encode_next_object(obj):
     if type(obj) == int:
-        return encode_int(obj)
+        return _encode_int(obj)
     elif type(obj) == str:
-        return encode_string(obj)
+        return _encode_string(obj)
     elif type(obj) == dict:
-        return encode_dict(obj)
+        return _encode_dict(obj)
     elif type(obj) == list:
-        return encode_list(obj)
+        return _encode_list(obj)
     else:
         print "Unsupported type %s. Bailing." % type(obj)
         sys.exit(1)
 
-def encode(obj):
-    return encode_next_object(obj)
+
+#-----------------------------------------
+#              main() stuff
+#-----------------------------------------
 
 if __name__ == "__main__":
     with open("test.torrent", "r") as f:
@@ -133,7 +153,5 @@ if __name__ == "__main__":
         print "Failed"
         print "Expected:", s
         print "Got:", encoded_obj
-
-
 
 
