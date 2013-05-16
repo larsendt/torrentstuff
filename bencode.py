@@ -135,18 +135,25 @@ def _encode_next_object(obj):
 #-----------------------------------------
 
 if __name__ == "__main__":
-    with open("test.torrent", "r") as f:
-        s = f.read()
+    import sys
+    with open(sys.argv[1], "r") as f:
+        s = f.read().rstrip()
 
     decoded_obj = decode(s)
     encoded_obj = encode(decoded_obj)
 
-    print "Testing test.torrent...",
+    print "Testing %s..." % sys.argv[1],
     if s == encoded_obj:
         print "Success, reencoded data matched original."
     else:
         print "Failed"
-        print "Expected:", s
-        print "Got:", encoded_obj
+        ok = True
+        for (a, b) in zip(repr(s), repr(encoded_obj)):
+            if a != b:
+                print "!!![", a, b, "] "
+                sys.exit()
+            else:
+                print "[", a, b, "] ",
+
 
 
