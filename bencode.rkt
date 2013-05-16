@@ -2,6 +2,21 @@
 
 #lang racket
 
+;-----------------------------------------
+;     Functions You Should Care About
+;-----------------------------------------
+
+(define (bencode-encode obj)
+  (encode-next-item obj))
+
+(define (decode-bencoded data)
+  (define port (open-input-bytes data))
+  (decode-next-item port))
+
+;-----------------------------------------
+;                Decoding
+;-----------------------------------------
+
 (define (read-until-char port char)
   (define new-char (integer->char (read-byte port)))
   (cond
@@ -57,10 +72,64 @@
     [(number? (string->number (string marker))) (decode-string port)]
     [else (raise (format "Unknown marker '~v'." marker))]))
 
-(define (decode-bencoded data)
-  (define port (open-input-bytes data))
-  (decode-next-item port))
-
-(define torrent-data (file->bytes "test.torrent"))
+;(define torrent-data (file->bytes "test.torrent"))
 ;(define torrent-data #"d2:\316\273i1337ee")
-(decode-bencoded torrent-data)
+;(decode-bencoded torrent-data)
+
+;------------------------------------------
+;                 Encoding
+;------------------------------------------
+
+(define (encode-int i)
+  (bytes-append (bytes-append #"i" (string->bytes/utf-8 (number->string i))) #"e"))
+
+(define (encode-string s)
+  (define byte-s
+    (cond
+      [(string? s) (string->bytes/utf-8 s)]
+      [else s]))
+  (define len-str (number->string (bytes-length byte-s)))
+  (bytes-append (bytes-append (string->bytes/utf-8 len-str) #":") byte-s))
+
+(define (recurse-encode-items items)
+  (if (null? items)
+    #""
+    (bytes-append
+      (encode-next-item (first items))
+      (recurse-encode-items (rest items)))))
+
+(define (encode-list l)
+  (bytes-append #"l" (bytes-append (recurse-encode-items l) #"e")))
+
+; expects '((a b) (c d) (e f))
+; returns '(a b c d e f)
+(define (zip-items items)
+    (if (null? items)
+      empty
+      (cons (car (first items))
+            (cons (cdr (first items))
+                  (zip-items (rest items))))))
+
+(define (encode-dict d)
+    (define sorted-items
+      (sort (hash->list d)
+            (lambda (x y) (< (first x) (first y)))))
+    (define zipped-items (zip-items sorted-items))
+    (printf "~v~n" zipped-items)
+    (bytes-append #"d" (bytes-append (recurse-encode-items zipped-items) #"e")))
+
+(define (encode-next-item item)
+  (cond
+    [(integer? item) (encode-int item)]
+    [(string? item) (encode-string item)]
+    [(bytes? item) (encode-string item)]
+    [(list? item) (encode-list item)]
+    [(hash? item) (encode-dict item)]
+    [else (raise (format "Cannot encode type 'wat'"))]))
+
+
+;(encode-next-item -32)
+;(encode-next-item "hello")
+;(encode-next-item #"\316\273")
+;(encode-next-item '(1 2))
+;(encode-next-item #hash((#"a" . 1337)))
