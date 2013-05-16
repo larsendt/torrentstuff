@@ -3,7 +3,7 @@
 #lang racket
 
 (define (read-until-char port char)
-  (define new-char (read-char port))
+  (define new-char (integer->char (read-byte port)))
   (cond
     [(eof-object? new-char) (raise "character not found")]
     [(char=? new-char char) (string new-char)]
@@ -23,7 +23,7 @@
                       len-str
                       0
                       (sub1 (string-length len-str)))))
-  (read-string len port))
+  (read-bytes len port))
 
 (define (decode-list port)
   (read-char port) ; drop the 'l'
@@ -41,7 +41,8 @@
     (define marker (peek-char port))
     (cond
       [(char=? marker #\e) #f] ; WARNING: if key is not #f, this will silently ignore the error
-      [(equal? key #f) (recurse-decode-dict port (decode-next-item port))]
+      [(equal? key #f)
+       (recurse-decode-dict port (decode-next-item port))]
       [else (hash-set! data-dict key (decode-next-item port))
             (recurse-decode-dict port #f)]))
   (recurse-decode-dict port #f)
@@ -57,9 +58,9 @@
     [else (raise (format "Unknown marker '~v'." marker))]))
 
 (define (decode-bencoded data)
-  (define port (open-input-string data))
+  (define port (open-input-bytes data))
   (decode-next-item port))
 
-;(define torrent-data (file->string "test.torrent"))
-(define torrent-data "d2:k12:v12:k22:v2li1337eee")
+(define torrent-data (file->bytes "test.torrent"))
+;(define torrent-data #"d2:\316\273i1337ee")
 (decode-bencoded torrent-data)
