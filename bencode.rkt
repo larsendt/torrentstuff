@@ -105,7 +105,6 @@
       (sort (hash->list d)
             (lambda (x y) (string<? (car x) (car y)))))
     (define zipped-items (zip-items sorted-items))
-    (printf "~v~n" zipped-items)
     (bytes-append #"d" (bytes-append (recurse-encode-items zipped-items) #"e")))
 
 (define (encode-next-item item)
