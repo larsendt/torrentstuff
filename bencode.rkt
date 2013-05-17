@@ -2,16 +2,6 @@
 
 #lang racket
 
-;-----------------------------------------
-;     Functions You Should Care About
-;-----------------------------------------
-
-(define (bencode-encode obj)
-  (encode-next-item obj))
-
-(define (decode-bencoded data)
-  (define port (open-input-bytes data))
-  (decode-next-item port))
 
 ;-----------------------------------------
 ;                Decoding
@@ -113,7 +103,7 @@
 (define (encode-dict d)
     (define sorted-items
       (sort (hash->list d)
-            (lambda (x y) (< (first x) (first y)))))
+            (lambda (x y) (string<? (car x) (car y)))))
     (define zipped-items (zip-items sorted-items))
     (printf "~v~n" zipped-items)
     (bytes-append #"d" (bytes-append (recurse-encode-items zipped-items) #"e")))
@@ -133,3 +123,18 @@
 ;(encode-next-item #"\316\273")
 ;(encode-next-item '(1 2))
 ;(encode-next-item #hash((#"a" . 1337)))
+
+;-----------------------------------------
+;     Functions You Should Care About
+;-----------------------------------------
+
+(provide bencode-encode)
+(provide decode-bencoded)
+
+(define (bencode-encode obj)
+  (encode-next-item obj))
+
+(define (decode-bencoded data)
+  (define port (open-input-bytes data))
+  (decode-next-item port))
+
