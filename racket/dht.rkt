@@ -34,20 +34,25 @@
   (recurse-split node-bytes-port))
 
 (define (send-ping socket)
-  (dht-query socket `#hash(("t" . "01") ("y" . "q") ("q" . "ping") ("a" . #hash(("id" . ,(current-node-id)))))))
+  (dht-query socket `#hash(("t" . "01")
+                           ("y" . "q")
+                           ("q" . "ping")
+                           ("a" . #hash(("id" . ,(current-node-id)))))))
 
 (define (get-peers socket info-hash)
   (define msg `#hash(("t" . "02")
                      ("y" . "q" )
                      ("q" . "get_peers")
-                     ("a" . #hash(("id" . ,(current-node-id)) ("info_hash" . ,info-hash)))))
+                     ("a" . #hash(("id" . ,(current-node-id))
+                                  ("info_hash" . ,info-hash)))))
   (dht-query socket msg))
 
 (define (find-node socket target-id)
   (define msg `#hash(("t" . "03")
                      ("y" . "q")
                      ("q" . "find_node")
-                     ("a" . #hash(("id" . ,(current-node-id)) ("target" . ,target-id)))))
+                     ("a" . #hash(("id" . ,(current-node-id))
+                                  ("target" . ,target-id)))))
   (dht-query socket msg))
 
 (define bootstrap-host "router.bittorrent.com")
